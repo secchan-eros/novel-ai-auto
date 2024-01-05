@@ -1,0 +1,27 @@
+{
+  "root": true,
+  "extends": [
+    "@nuxtjs/eslint-config",
+    "@nuxtjs/eslint-config-typescript",
+    "plugin:tailwindcss/recommended",
+    "prettier"
+  ],
+  "rules": {
+    "vue/component-name-in-template-casing": [
+      "error",
+      "PascalCase",
+      {
+        "registeredComponentsOnly": false
+      }
+    ],
+    "vue/no-multiple-template-root": "off",
+    "vue/attribute-hyphenation": [
+      "error",
+      "never"
+    ],
+    "vue/v-on-event-hyphenation": [
+      "off"
+    ],
+    "tailwindcss/no-custom-classname": "off"
+  }
+}

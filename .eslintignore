@@ -1,0 +1,9 @@
+/.husky/
+/.output/
+/.nuxt/
+/.storybook/*.d.ts
+/.vscode/
+/node_modules/
+/api/
+/public/
+.gitignore
