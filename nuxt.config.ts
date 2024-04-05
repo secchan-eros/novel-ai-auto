@@ -1,13 +1,17 @@
 export default defineNuxtConfig({
   devtools: { enabled: true },
-  modules: ['nuxt-primevue'],
+  modules: ['nuxt-primevue', '@vueuse/nuxt'],
   primevue: {
     components: {
       prefix: 'Prime',
     },
     cssLayerOrder: 'tailwind-base, primevue, tailwind-utilities',
   },
-  css: ['~/assets/css/tailwind.css'],
+  css: [
+    'primevue/resources/themes/nano/theme.css',
+    'primeicons/primeicons.css',
+    '~/assets/css/tailwind.css',
+  ],
   postcss: {
     plugins: {
       tailwindcss: {},
@@ -17,12 +21,17 @@ export default defineNuxtConfig({
   nitro: {
     serveStatic: true,
     devProxy: {
-      '/novelai': {
-        target: 'https://api.novelai.net',
+      '/ai': {
+        target: 'https://image.novelai.net/ai',
         changeOrigin: true,
         secure: true,
         ws: true,
       },
+    },
+  },
+  runtimeConfig: {
+    public: {
+      novelaiToken: process.env.NUXT_PUBLIC_NOVELAI_TOKEN,
     },
   },
 })
