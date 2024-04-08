@@ -1,15 +1,16 @@
 <template>
   <div class="flex h-screen">
-    <aside class="h-full w-max shrink-0 space-y-4 overflow-y-auto border-r p-2">
-      <section>
+    <aside class="h-full w-[400px] shrink-0 space-y-4 overflow-y-auto border-r">
+      <section class="p-2">
         <h3 class="mt-2">プロンプト</h3>
         <ul ref="elInputRef" class="space-y-[2px]">
           <li
-            v-for="(word, index) in inputWords"
+            v-for="(word, index) in context.inputWords"
             :key="word.id"
             class="flex items-center gap-1"
           >
-            <span class="handle pi pi-align-justify p-1"></span>
+            <button class="text-xs" @click="moveUp(index)">↑</button>
+            <button class="text-xs" @click="moveDown(index)">↓</button>
             <PrimeCheckbox
               v-model="word.disabled"
               binary
@@ -17,9 +18,10 @@
               :falseValue="true"
             />
             <PrimeInputText
-              v-model="word.word"
+              :modelValue="word.word"
               class="w-64 text-xs"
               size="small"
+              @update:modelValue="word.word = $event?.trim() || ''"
             />
             <PrimeInputNumber
               v-model="word.str"
@@ -48,7 +50,7 @@
         <h3 class="mt-2">ネガティブ</h3>
         <ul ref="elNegativeRef">
           <li
-            v-for="(word, index) in negativeWords"
+            v-for="(word, index) in context.negativeWords"
             :key="word.id"
             class="flex items-center gap-1"
           >
@@ -60,9 +62,10 @@
               :falseValue="true"
             />
             <PrimeInputText
-              v-model="word.word"
+              :modelValue="word.word"
               class="w-64 text-xs"
               size="small"
+              @update:model-value="word.word = $event.trim()"
             />
             <PrimeInputNumber
               v-model="word.str"
@@ -95,60 +98,47 @@
         >
       </section>
 
-      <div class="flex items-center gap-4">
+      <div class="sticky bottom-0 space-y-4 rounded bg-white p-4">
+        <div ref="dropRef" class="sticky top-0 h-10 bg-blue-100">Drop</div>
+        <div class="flex items-center gap-4">
+          <div>
+            <div class="flex items-center gap-1">
+              <PrimeCheckbox
+                v-model="context.addQuarity"
+                inputId="quarity"
+                binary
+              /><label for="quarity">クオリティ</label>
+            </div>
+            <div class="flex items-center gap-1">
+              ネガティブ<PrimeDropdown
+                v-model="context.negativeSetId"
+                :options="negativePresetWordSets"
+                optionLabel="label"
+                optionValue="id"
+              />
+            </div>
+          </div>
+          <PrimeDropdown
+            v-model="context.size"
+            :options="sizeOptions"
+            optionLabel="label"
+            optionValue="id"
+          />
+        </div>
         <div>
           <div class="flex items-center gap-1">
             <PrimeCheckbox
-              v-model="addQuarity"
-              inputId="quarity"
+              v-model="isCensored"
+              inputId="is-censored"
               binary
-            /><label for="quarity">クオリティ</label>
-          </div>
-          <div class="flex items-center gap-1">
-            ネガティブ<PrimeDropdown
-              v-model="negativeSetId"
-              :options="negativePresetWordSets"
-              optionLabel="label"
-              optionValue="id"
-            />
+            /><label for="is-censored">修正</label>
           </div>
         </div>
-        <PrimeDropdown
-          v-model="size"
-          :options="sizeOptions"
-          optionLabel="label"
-          optionValue="id"
-        />
-      </div>
-      <div>
-        <div class="flex items-center gap-1">
-          <PrimeCheckbox
-            v-model="isCensored"
-            inputId="is-censored"
-            binary
-          /><label for="is-censored">修正</label>
+        <div>
+          <pre class="whitespace-pre-wrap break-all text-xs">{{
+            inputWordsToSend
+          }}</pre>
         </div>
-      </div>
-      <div>
-        <PrimeInputText v-model="setNameInput" /><PrimeButton
-          @click="addInputSet"
-          >保存</PrimeButton
-        >
-      </div>
-      <div>
-        <PrimeDropdown
-          v-model="selectedInputSet"
-          :options="inputSetStorage.inputSet"
-          optionLabel="name"
-          optionValue="id"
-        /><PrimeButton @click="loadInputSet">読出</PrimeButton
-        ><PrimeButton severity="danger" @click="deleteInputSet"
-          >削除</PrimeButton
-        ><PrimeButton severity="info" @click="testOutputInputSet"
-          >テスト出力</PrimeButton
-        >
-      </div>
-      <div class="sticky bottom-0 space-y-4 rounded bg-white p-4">
         <div class="flex items-center gap-4">
           <PrimeButton :loading="generating" @click="generateImage"
             >単発生成</PrimeButton
@@ -160,6 +150,7 @@
             >スタート</PrimeButton
           >
           <PrimeButton v-else @click="stopGenerating">ストップ</PrimeButton>
+          <PrimeProgressSpinner v-if="generating" class="size-5" />
           <PrimeButton class="ml-auto" @click="clearCurrentSelection"
             >クリア</PrimeButton
           >
@@ -168,15 +159,13 @@
     </aside>
     <main
       ref="mainRef"
-      class="relative h-full grow"
+      class="relative flex h-full grow flex-col"
       :class="[isCensored ? 'blur-sm' : '']"
     >
-      <div ref="dropRef" class="sticky top-0 h-10 bg-blue-100">Drop</div>
       <div
-        class="grid size-full grid-cols-4 overflow-y-auto"
+        class="glow grid grid-cols-4 overflow-y-auto"
         style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr))"
       >
-        <PrimeProgressSpinner v-if="generating" />
         <div v-for="i in result" :key="i" @click="selectedImageUrl = i">
           <img :src="i" />
         </div>
@@ -196,8 +185,6 @@
   </div>
 </template>
 <script setup lang="ts">
-import { useSortable } from '@vueuse/integrations/useSortable'
-import { type SortableOptions } from 'sortablejs'
 import { nanoid } from 'nanoid'
 import JSZip from 'jszip'
 import { readMetadata } from './utils/png-metadata'
@@ -265,7 +252,7 @@ const onPngFileDrop = async (files: File[] | null, event: DragEvent) => {
   const notExistsWords: string[] = []
   clearCurrentSelection()
   promptWords.forEach(({ word, str }) => {
-    const target = inputWords.value.find((iw) => iw.word === word)
+    const target = context.inputWords.find((iw) => iw.word === word)
     if (target) {
       target.str = str
       target.disabled = false
@@ -290,18 +277,6 @@ type Input = {
   negativeWords: WordEditable[]
   size: SizeOption['id']
 }
-type InputSet = {
-  id: string
-  name: string
-  negativeSetId: string
-  addQuarity: boolean
-  inputWords: WordEditable[]
-  negativeWords: WordEditable[]
-  size: SizeOption['id']
-}
-
-const setNameInput = ref<InputSet['name']>('')
-const selectedInputSet = ref<InputSet['id']>()
 
 const inputStorage = useLocalStorage<Input>(
   'novel-ai-auto_input',
@@ -312,14 +287,6 @@ const inputStorage = useLocalStorage<Input>(
     negativeWords: [] as WordEditable[],
     size: 'portrait',
   },
-  {
-    serializer: { read: JSON.parse, write: JSON.stringify },
-  }
-)
-
-const inputSetStorage = useLocalStorage<{ inputSet: InputSet[] }>(
-  'novel-ai-auto_input-set-list',
-  { inputSet: [] },
   {
     serializer: { read: JSON.parse, write: JSON.stringify },
   }
@@ -346,11 +313,6 @@ const defaultInput = {
     legacy_v3_extend: false,
     params_version: 1,
   },
-}
-
-const sortableOptions: SortableOptions = {
-  animation: 200,
-  handle: '.handle',
 }
 
 const quarityPresetWords: Word[] = [
@@ -434,40 +396,45 @@ const negativePresetWordSets: { id: string; label: string; words: Word[] }[] = [
   },
 ]
 
-const negativeSetId = ref('strong')
-const addQuarity = ref(true)
-const size = ref<Input['size']>('portrait')
-const inputWords = ref<WordEditable[]>([])
-const negativeWords = ref<WordEditable[]>([])
+// const negativeSetId = ref('strong')
+// const addQuarity = ref(true)
+// const size = ref<Input['size']>('portrait')
+// const context.inputWords = ref<WordEditable[]>([])
+// const negativeWords = ref<WordEditable[]>([])
+
+const context = reactive<Input>({
+  negativeSetId: 'strong',
+  addQuarity: true,
+  size: 'portrait',
+  inputWords: [],
+  negativeWords: [],
+})
 
 onMounted(() => {
   if (!inputStorage.value) {
     return
   }
-  negativeSetId.value = inputStorage.value.negativeSetId
-  addQuarity.value = inputStorage.value.addQuarity
-  inputWords.value = inputStorage.value.inputWords
-  negativeWords.value = inputStorage.value.negativeWords
-  size.value = inputStorage.value.size
+  context.negativeSetId = inputStorage.value.negativeSetId
+  context.addQuarity = inputStorage.value.addQuarity
+  context.inputWords = inputStorage.value.inputWords
+  context.negativeWords = inputStorage.value.negativeWords
+  context.size = inputStorage.value.size
 })
 
 watch(
-  [negativeSetId, addQuarity, inputWords, negativeWords, size],
+  context,
   () => {
-    inputStorage.value.negativeSetId = negativeSetId.value
-    inputStorage.value.addQuarity = addQuarity.value
-    inputStorage.value.inputWords = inputWords.value
-    inputStorage.value.negativeWords = negativeWords.value
-    inputStorage.value.size = size.value
+    inputStorage.value.negativeSetId = context.negativeSetId
+    inputStorage.value.addQuarity = context.addQuarity
+    inputStorage.value.inputWords = context.inputWords
+    inputStorage.value.negativeWords = context.negativeWords
+    inputStorage.value.size = context.size
   },
   { deep: true }
 )
 
-useSortable(elInputRef, inputWords, sortableOptions)
-useSortable(elNegativeRef, negativeWords, sortableOptions)
-
 const addInputWord = (index: number) => {
-  inputWords.value.splice(index + 1, 0, {
+  context.inputWords.splice(index + 1, 0, {
     id: nanoid(),
     word: '',
     str: 0,
@@ -476,85 +443,44 @@ const addInputWord = (index: number) => {
 }
 
 const removeInputWord = (index: number) => {
-  inputWords.value.splice(index, 1)
+  context.inputWords.splice(index, 1)
 }
 
 const addNegativeWord = () => {
-  negativeWords.value.push({ id: nanoid(), word: '', str: 0, disabled: false })
+  context.negativeWords.push({
+    id: nanoid(),
+    word: '',
+    str: 0,
+    disabled: false,
+  })
 }
 
 const removeNegativeWord = (index: number) => {
-  negativeWords.value.splice(index, 1)
+  context.negativeWords.splice(index, 1)
 }
 
-const addInputSet = () => {
-  const inputSet = {
-    id: nanoid(),
-    name: setNameInput.value,
-    negativeSetId: negativeSetId.value,
-    addQuarity: addQuarity.value,
-    inputWords: inputWords.value,
-    negativeWords: negativeWords.value,
-    size: size.value,
-  }
-  const deepCopy = JSON.parse(JSON.stringify(inputSet))
-  console.log(deepCopy)
-  inputSetStorage.value.inputSet.push(deepCopy)
-}
-
-const loadInputSet = () => {
-  confirm.require({
-    header: 'ロード',
-    message: '入力セットをロードします。よろしいですか？',
-    accept: () => {
-      const inputSet = inputSetStorage.value.inputSet.find(
-        (i) => i.id === selectedInputSet.value
-      )
-      if (!inputSet) {
-        return
-      }
-
-      negativeSetId.value = inputSet.negativeSetId
-      addQuarity.value = inputSet.addQuarity
-      inputWords.value = inputSet.inputWords
-      negativeWords.value = inputSet.negativeWords
-      size.value = inputSet.size
-    },
-  })
-}
-
-const deleteInputSet = () => {
-  confirm.require({
-    header: '削除',
-    message: '入力セット削除します。よろしいですか？',
-    accept: () => {
-      inputSetStorage.value.inputSet = inputSetStorage.value.inputSet.filter(
-        (is) => is.id !== selectedInputSet.value
-      )
-    },
-  })
-}
-
-const testOutputInputSet = () => {
-  const inputSet = inputSetStorage.value.inputSet.find(
-    (i) => i.id === selectedInputSet.value
-  )
-  if (!inputSet) {
+const moveUp = (index: number) => {
+  if (index <= 0) {
     return
   }
+  const temp = context.inputWords[index - 1]
+  context.inputWords[index - 1] = context.inputWords[index]
+  context.inputWords[index] = temp
+}
 
-  console.log(
-    inputSet.inputWords
-      .filter((i) => !i.disabled)
-      .map((i) => i.word)
-      .join(',')
-  )
+const moveDown = (index: number) => {
+  if (index >= context.inputWords.length) {
+    return
+  }
+  const temp = context.inputWords[index + 1]
+  context.inputWords[index + 1] = context.inputWords[index]
+  context.inputWords[index] = temp
 }
 
 const inputWordsToSend = computed(() => {
   return [
-    ...inputWords.value.filter((w) => !w.disabled),
-    ...(addQuarity ? quarityPresetWords : []),
+    ...context.inputWords.filter((w) => !w.disabled),
+    ...(context.addQuarity ? quarityPresetWords : []),
   ]
     .map((w) =>
       w.str >= 0
@@ -566,11 +492,11 @@ const inputWordsToSend = computed(() => {
 
 const negativePromptToSend = computed(() => {
   const negativeSet = negativePresetWordSets.find(
-    (s) => s.id === negativeSetId.value
+    (s) => s.id === context.negativeSetId
   )
   return [
     ...(negativeSet ? negativeSet.words : []),
-    ...negativeWords.value.filter((w) => !w.disabled),
+    ...context.negativeWords.filter((w) => !w.disabled),
   ]
     .map((w) =>
       w.str >= 0
@@ -581,11 +507,11 @@ const negativePromptToSend = computed(() => {
 })
 
 const sizeToSend = computed(() => {
-  return sizeOptions.find((so) => so.id === size.value)
+  return sizeOptions.find((so) => so.id === context.size)
 })
 
 const clearCurrentSelection = () => {
-  inputWords.value.forEach((i) => (i.disabled = true))
+  context.inputWords.forEach((i) => (i.disabled = true))
 }
 
 async function extractAndDisplayImage(zipBlob: Blob) {
@@ -627,7 +553,7 @@ const generateImage = async () => {
           width: sizeToSend.value?.width,
           height: sizeToSend.value?.height,
           negative_prompt: negativePromptToSend.value,
-          qualityToggle: addQuarity.value || false,
+          qualityToggle: context.addQuarity || false,
         },
         input: inputWordsToSend.value,
         seed: Math.floor(Math.random() * 10000000000),
