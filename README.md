@@ -1,75 +1,35 @@
-# Nuxt 3 Minimal Starter
+# Novel AI Auto
 
-Look at the [Nuxt 3 documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+## about
+Novel AI の画像生成のプロンプトの調整を快適にし、画像生成を自動で連続して実行するためのWebUIです。
 
-## Setup
+https://github.com/secchan-eros/novel-ai-auto/assets/89858849/e1eb6eeb-b17e-4e1e-b673-4015e02daf4f
 
-Make sure to install the dependencies:
+## 使い方
 
-```bash
-# npm
-npm install
+### Novel AI トークンの取得
+![image](https://github.com/secchan-eros/novel-ai-auto/assets/89858849/f2b5afa4-904d-4a9e-a5f8-8c78381704fc)
 
-# pnpm
-pnpm install
+トークンを取得し、.envファイルをルートに作成して以下のように設定します。
 
-# yarn
-yarn install
-
-# bun
-bun install
+```ini
+NUXT_PUBLIC_NOVELAI_TOKEN={{トークン}}
 ```
 
-## Development Server
+### パッケージインストール
 
-Start the development server on `http://localhost:3000`:
+```
+npm i
+```
 
-```bash
-# npm
+### 起動
+
+```
 npm run dev
-
-# pnpm
-pnpm run dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
+もしくは
 
-Build the application for production:
-
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm run build
-
-# yarn
-yarn build
-
-# bun
-bun run build
 ```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm run preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
+npm run build && npm run start
 ```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
