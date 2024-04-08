@@ -416,7 +416,10 @@ onMounted(() => {
   }
   context.negativeSetId = inputStorage.value.negativeSetId
   context.addQuarity = inputStorage.value.addQuarity
-  context.inputWords = inputStorage.value.inputWords
+  context.inputWords = inputStorage.value.inputWords.map((iw) => ({
+    ...iw,
+    word: iw.word.trim(),
+  }))
   context.negativeWords = inputStorage.value.negativeWords
   context.size = inputStorage.value.size
 })
