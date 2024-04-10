@@ -1,11 +1,11 @@
 <template>
   <div class="flex h-screen">
-    <aside class="h-full w-[400px] shrink-0 space-y-4 overflow-y-auto border-r">
-      <section class="p-2">
+    <aside class="flex h-full w-[400px] shrink-0 flex-col space-y-4 border-r">
+      <section class="grow overflow-y-auto p-2">
         <h3 class="mt-2">プロンプト</h3>
         <ul ref="elInputRef" class="space-y-[2px]">
           <li
-            v-for="(word, index) in context.inputWords"
+            v-for="(word, index) in inputWordsShown"
             :key="word.id"
             class="flex items-center gap-1"
           >
@@ -98,16 +98,26 @@
         >
       </section>
 
-      <div class="sticky bottom-0 space-y-4 rounded bg-white p-4">
+      <div class="bottom-0 space-y-2 rounded bg-white px-4 py-2">
+        <div class="flex items-center gap-1">
+          <label>フィルタ</label>
+          <PrimeInputText v-model="filter" class="w-64 text-xs" size="small" />
+          <button @click="filter = ''">消</button>
+        </div>
+        <div class="flex items-center gap-1">
+          <label>オンのみ</label>
+          <PrimeCheckbox v-model="showOnlyEnabled" inputId="quarity" binary />
+        </div>
         <div ref="dropRef" class="sticky top-0 h-10 bg-blue-100">Drop</div>
         <div class="flex items-center gap-4">
           <div>
             <div class="flex items-center gap-1">
-              <PrimeCheckbox
+              <label for="quarity">クオリティ</label
+              ><PrimeCheckbox
                 v-model="context.addQuarity"
                 inputId="quarity"
                 binary
-              /><label for="quarity">クオリティ</label>
+              />
             </div>
             <div class="flex items-center gap-1">
               ネガティブ<PrimeDropdown
@@ -187,6 +197,7 @@
 <script setup lang="ts">
 import { nanoid } from 'nanoid'
 import JSZip from 'jszip'
+import dayjs from 'dayjs'
 import { readMetadata } from './utils/png-metadata'
 
 const config = useRuntimeConfig()
@@ -224,6 +235,9 @@ const elNegativeRef = ref<HTMLElement>()
 const isCensored = ref(false)
 const dropRef = ref<HTMLElement>()
 
+const filter = ref('')
+const showOnlyEnabled = ref(false)
+
 const onPngFileDrop = async (files: File[] | null, event: DragEvent) => {
   const file = files?.[0]
   if (!file) {
@@ -252,7 +266,9 @@ const onPngFileDrop = async (files: File[] | null, event: DragEvent) => {
   const notExistsWords: string[] = []
   clearCurrentSelection()
   promptWords.forEach(({ word, str }) => {
-    const target = context.inputWords.find((iw) => iw.word === word)
+    const target = context.inputWords.find(
+      (iw) => iw.word.trim() === word.trim()
+    )
     if (target) {
       target.str = str
       target.disabled = false
@@ -479,6 +495,14 @@ const moveDown = (index: number) => {
   context.inputWords[index + 1] = context.inputWords[index]
   context.inputWords[index] = temp
 }
+
+const inputWordsShown = computed(() => {
+  return context.inputWords.filter(
+    (i) =>
+      (filter.value ? i.word.includes(filter.value) : true) &&
+      (showOnlyEnabled.value ? !i.disabled : true)
+  )
+})
 
 const inputWordsToSend = computed(() => {
   return [
