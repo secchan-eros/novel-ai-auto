@@ -561,7 +561,7 @@ async function extractAndDisplayImage(zipBlob: Blob) {
   }
 
   // BlobからURLを作成し、imgタグのsrc属性に設定
-  return URL.createObjectURL(pngBlob)
+  return { pngBlob, url: URL.createObjectURL(pngBlob) }
 }
 
 const result = ref<string[]>([])
@@ -587,18 +587,28 @@ const generateImage = async () => {
       },
       method: 'POST',
     })
-    const url = await extractAndDisplayImage(blob)
+    const { pngBlob, url } = await extractAndDisplayImage(blob)
     result.value.unshift(url)
     if (selectedImageUrl.value) {
       selectedImageUrl.value = url
     }
 
-    const downloadLink = document.createElement('a')
-    downloadLink.href = url
-    downloadLink.download = `${new Date().getTime()}.png`
-    document.body.appendChild(downloadLink)
-    downloadLink.click()
-    document.body.removeChild(downloadLink)
+    try {
+      const now = dayjs()
+      await ipcRenderer.invoke(
+        'save-blob',
+        `${config.public.downloadDir}/${now.format('YY-MM-DD')}/${new Date().getTime()}.png`,
+        await pngBlob.arrayBuffer()
+      )
+    } catch (e) {
+      console.error(e)
+      const downloadLink = document.createElement('a')
+      downloadLink.href = url
+      downloadLink.download = `${new Date().getTime()}.png`
+      document.body.appendChild(downloadLink)
+      downloadLink.click()
+      document.body.removeChild(downloadLink)
+    }
   } catch {
   } finally {
     generating.value = false

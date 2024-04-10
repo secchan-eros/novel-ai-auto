@@ -1,6 +1,6 @@
 export default defineNuxtConfig({
   devtools: { enabled: true },
-  modules: ['nuxt-primevue', '@vueuse/nuxt'],
+  modules: ['nuxt-primevue', '@vueuse/nuxt', 'nuxt-electron'],
   primevue: {
     components: {
       prefix: 'Prime',
@@ -32,6 +32,20 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       novelaiToken: process.env.NUXT_PUBLIC_NOVELAI_TOKEN,
+      downloadDir: process.env.NUXT_PUBLIC_DOWNLOAD_DIR,
     },
+  },
+  vite: {
+    build: {
+      target: 'esnext',
+    },
+  },
+  electron: {
+    build: [
+      {
+        // Main-Process entry file of the Electron App.
+        entry: 'electron/main.ts',
+      },
+    ],
   },
 })
