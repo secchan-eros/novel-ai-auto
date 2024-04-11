@@ -98,74 +98,113 @@
         >
       </section>
 
-      <div class="bottom-0 space-y-2 rounded bg-white px-4 py-2">
-        <div class="flex items-center gap-1">
-          <label>フィルタ</label>
-          <PrimeInputText v-model="filter" class="w-64 text-xs" size="small" />
-          <button @click="filter = ''">消</button>
-        </div>
-        <div class="flex items-center gap-1">
-          <label>オンのみ</label>
-          <PrimeCheckbox v-model="showOnlyEnabled" inputId="quarity" binary />
-        </div>
-        <div ref="dropRef" class="sticky top-0 h-10 bg-blue-100">Drop</div>
-        <div class="flex items-center gap-4">
-          <div>
+      <PrimeAccordion :multiple="true" :activeIndex="[0]">
+        <PrimeAccordionTab header="生成">
+          <div class="space-y-2 px-4 py-2">
             <div class="flex items-center gap-1">
-              <label for="quarity">クオリティ</label
-              ><PrimeCheckbox
-                v-model="context.addQuarity"
+              <label>フィルタ</label>
+              <PrimeInputText
+                id="filter"
+                :modelValue="filter"
+                class="w-64 text-xs"
+                size="small"
+                @change="filter = ($event.target as any).value as string"
+              />
+              <button @click="filter = ''">消</button>
+            </div>
+            <div class="flex items-center gap-1">
+              <label>オンのみ</label>
+              <PrimeCheckbox
+                v-model="showOnlyEnabled"
                 inputId="quarity"
                 binary
               />
             </div>
-            <div class="flex items-center gap-1">
-              ネガティブ<PrimeDropdown
-                v-model="context.negativeSetId"
-                :options="negativePresetWordSets"
+            <div ref="dropRef" class="sticky top-0 h-10 bg-blue-100">Drop</div>
+            <div class="flex items-center gap-4">
+              <div>
+                <div class="flex items-center gap-1">
+                  <label for="quarity">クオリティ</label
+                  ><PrimeCheckbox
+                    v-model="context.addQuarity"
+                    inputId="quarity"
+                    binary
+                  />
+                </div>
+                <div class="flex items-center gap-1">
+                  ネガティブ<PrimeDropdown
+                    v-model="context.negativeSetId"
+                    :options="negativePresetWordSets"
+                    optionLabel="label"
+                    optionValue="id"
+                  />
+                </div>
+              </div>
+              <PrimeDropdown
+                v-model="context.size"
+                :options="sizeOptions"
                 optionLabel="label"
                 optionValue="id"
               />
             </div>
+            <div>
+              <div class="flex items-center gap-1">
+                <PrimeCheckbox
+                  v-model="isCensored"
+                  inputId="is-censored"
+                  binary
+                /><label for="is-censored">修正</label>
+              </div>
+            </div>
+            <div>
+              <pre class="whitespace-pre-wrap break-all text-xs">{{
+                inputWordsToSend
+              }}</pre>
+            </div>
+            <div class="flex items-center gap-4">
+              <PrimeButton :loading="generating" @click="generateImage"
+                >単発生成</PrimeButton
+              >
+              <PrimeButton
+                v-if="!continueGeneration"
+                :disabled="generating"
+                @click="startGenerating"
+                >スタート</PrimeButton
+              >
+              <PrimeButton v-else @click="stopGenerating">ストップ</PrimeButton>
+              <PrimeProgressSpinner v-if="generating" class="size-5" />
+              <PrimeButton class="ml-auto" @click="clearCurrentSelection"
+                >クリア</PrimeButton
+              >
+            </div>
           </div>
-          <PrimeDropdown
-            v-model="context.size"
-            :options="sizeOptions"
-            optionLabel="label"
-            optionValue="id"
-          />
-        </div>
-        <div>
-          <div class="flex items-center gap-1">
-            <PrimeCheckbox
-              v-model="isCensored"
-              inputId="is-censored"
-              binary
-            /><label for="is-censored">修正</label>
+        </PrimeAccordionTab>
+        <PrimeAccordionTab header="設定">
+          <div class="space-y-2 px-4 py-2">
+            <div>
+              <label>プロンプト</label>
+              <div class="flex gap-1">
+                <PrimeButton @click="importPrompts()">インポート</PrimeButton>
+                <PrimeButton @click="exportPrompts()">エクスポート</PrimeButton>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <label>トークン</label>
+              <PrimeInputText
+                :modelValue="context.token"
+                @change="context.token = ($event.target as any).value"
+              />
+            </div>
+            <div class="flex items-center gap-1">
+              <label>保存先</label>
+              <PrimeInputText
+                :modelValue="context.downloadDir"
+                @change="context.downloadDir = ($event.target as any).value"
+              />
+            </div>
           </div>
-        </div>
-        <div>
-          <pre class="whitespace-pre-wrap break-all text-xs">{{
-            inputWordsToSend
-          }}</pre>
-        </div>
-        <div class="flex items-center gap-4">
-          <PrimeButton :loading="generating" @click="generateImage"
-            >単発生成</PrimeButton
-          >
-          <PrimeButton
-            v-if="!continueGeneration"
-            :disabled="generating"
-            @click="startGenerating"
-            >スタート</PrimeButton
-          >
-          <PrimeButton v-else @click="stopGenerating">ストップ</PrimeButton>
-          <PrimeProgressSpinner v-if="generating" class="size-5" />
-          <PrimeButton class="ml-auto" @click="clearCurrentSelection"
-            >クリア</PrimeButton
-          >
-        </div>
-      </div>
+        </PrimeAccordionTab>
+      </PrimeAccordion>
     </aside>
     <main
       ref="mainRef"
@@ -198,15 +237,29 @@
 import { nanoid } from 'nanoid'
 import JSZip from 'jszip'
 import dayjs from 'dayjs'
+import Store from 'electron-store'
 import { readMetadata } from './utils/png-metadata'
 
-const config = useRuntimeConfig()
 const confirm = useConfirm()
-const token = config.public.novelaiToken
+
+const keys = useMagicKeys()
+const ctrlF = keys['Ctrl+F']
+
+watch(ctrlF, (v) => {
+  if (v) {
+    const input = document.getElementById('filter') as
+      | HTMLInputElement
+      | undefined
+    if (!input) {
+      return
+    }
+    input.focus()
+    input.select()
+  }
+})
 
 type Word = { word: string; str: number }
 type WordEditable = { word: string; str: number; id: string; disabled: boolean }
-
 type SizeOption = {
   id:
     | 'portrait-small'
@@ -219,6 +272,16 @@ type SizeOption = {
   width: number
   height: number
 }
+type Context = {
+  negativeSetId: string
+  addQuarity: boolean
+  inputWords: WordEditable[]
+  negativeWords: WordEditable[]
+  size: SizeOption['id']
+  token: string
+  downloadDir: string
+}
+
 const sizeOptions: SizeOption[] = [
   { id: 'portrait-small', label: '縦小', width: 512, height: 768 },
   { id: 'portrait', label: '縦', width: 832, height: 1216 },
@@ -227,6 +290,8 @@ const sizeOptions: SizeOption[] = [
   { id: 'portrait-large', label: '縦大', width: 1024, height: 1536 },
   { id: 'landscape-large', label: '横大', width: 1536, height: 1024 },
 ]
+
+const store = new Store<Context>()
 
 const selectedImageUrl = ref<string | undefined>(undefined)
 
@@ -285,28 +350,6 @@ const onPngFileDrop = async (files: File[] | null, event: DragEvent) => {
 }
 
 useDropZone(dropRef, { onDrop: onPngFileDrop, dataTypes: ['image/png'] })
-
-type Input = {
-  negativeSetId: string
-  addQuarity: boolean
-  inputWords: WordEditable[]
-  negativeWords: WordEditable[]
-  size: SizeOption['id']
-}
-
-const inputStorage = useLocalStorage<Input>(
-  'novel-ai-auto_input',
-  {
-    negativeSetId: 'strong',
-    addQuarity: true,
-    inputWords: [] as WordEditable[],
-    negativeWords: [] as WordEditable[],
-    size: 'portrait',
-  },
-  {
-    serializer: { read: JSON.parse, write: JSON.stringify },
-  }
-)
 
 const defaultInput = {
   model: 'nai-diffusion-3',
@@ -412,45 +455,30 @@ const negativePresetWordSets: { id: string; label: string; words: Word[] }[] = [
   },
 ]
 
-// const negativeSetId = ref('strong')
-// const addQuarity = ref(true)
-// const size = ref<Input['size']>('portrait')
-// const context.inputWords = ref<WordEditable[]>([])
-// const negativeWords = ref<WordEditable[]>([])
-
-const context = reactive<Input>({
+const context = reactive<Context>({
   negativeSetId: 'strong',
   addQuarity: true,
   size: 'portrait',
   inputWords: [],
   negativeWords: [],
+  token: '',
+  downloadDir: '.',
 })
 
 onMounted(() => {
-  if (!inputStorage.value) {
-    return
+  if (store.store && Object.keys(store.store).length > 0) {
+    context.negativeSetId = store.store.negativeSetId
+    context.addQuarity = store.store.addQuarity
+    context.inputWords = store.store.inputWords.map((iw) => ({
+      ...iw,
+      word: iw.word.trim(),
+    }))
+    context.negativeWords = store.store.negativeWords
+    context.size = store.store.size
+    context.token = store.store.token
+    context.downloadDir = store.store.downloadDir
   }
-  context.negativeSetId = inputStorage.value.negativeSetId
-  context.addQuarity = inputStorage.value.addQuarity
-  context.inputWords = inputStorage.value.inputWords.map((iw) => ({
-    ...iw,
-    word: iw.word.trim(),
-  }))
-  context.negativeWords = inputStorage.value.negativeWords
-  context.size = inputStorage.value.size
 })
-
-watch(
-  context,
-  () => {
-    inputStorage.value.negativeSetId = context.negativeSetId
-    inputStorage.value.addQuarity = context.addQuarity
-    inputStorage.value.inputWords = context.inputWords
-    inputStorage.value.negativeWords = context.negativeWords
-    inputStorage.value.size = context.size
-  },
-  { deep: true }
-)
 
 const addInputWord = (index: number) => {
   context.inputWords.splice(index + 1, 0, {
@@ -567,26 +595,32 @@ async function extractAndDisplayImage(zipBlob: Blob) {
 const result = ref<string[]>([])
 const generating = ref(false)
 const generateImage = async () => {
+  // 保存
+  store.store = context
+
   generating.value = true
   try {
     const headers = new Headers()
-    headers.append('Authorization', `Bearer ${token}`)
-    const blob = await $fetch<Blob>('/ai/generate-image', {
-      headers,
-      body: {
-        ...defaultInput,
-        parameters: {
-          ...defaultInput.parameters,
-          width: sizeToSend.value?.width,
-          height: sizeToSend.value?.height,
-          negative_prompt: negativePromptToSend.value,
-          qualityToggle: context.addQuarity || false,
+    headers.append('Authorization', `Bearer ${context.token}`)
+    const blob = await $fetch<Blob>(
+      'https://image.novelai.net/ai/generate-image',
+      {
+        headers,
+        body: {
+          ...defaultInput,
+          parameters: {
+            ...defaultInput.parameters,
+            width: sizeToSend.value?.width,
+            height: sizeToSend.value?.height,
+            negative_prompt: negativePromptToSend.value,
+            qualityToggle: context.addQuarity || false,
+          },
+          input: inputWordsToSend.value,
+          seed: Math.floor(Math.random() * 10000000000),
         },
-        input: inputWordsToSend.value,
-        seed: Math.floor(Math.random() * 10000000000),
-      },
-      method: 'POST',
-    })
+        method: 'POST',
+      }
+    )
     const { pngBlob, url } = await extractAndDisplayImage(blob)
     result.value.unshift(url)
     if (selectedImageUrl.value) {
@@ -595,9 +629,10 @@ const generateImage = async () => {
 
     try {
       const now = dayjs()
+      const { ipcRenderer } = window.require('electron/renderer')
       await ipcRenderer.invoke(
         'save-blob',
-        `${config.public.downloadDir}/${now.format('YY-MM-DD')}/${new Date().getTime()}.png`,
+        `${context.downloadDir}/${now.format('YYYY-MM-DD')}/${new Date().getTime()}.png`,
         await pngBlob.arrayBuffer()
       )
     } catch (e) {
@@ -624,5 +659,20 @@ const startGenerating = async () => {
 }
 const stopGenerating = () => {
   continueGeneration.value = false
+}
+
+const importPrompts = async () => {
+  const { ipcRenderer } = window.require('electron/renderer')
+  const response = await ipcRenderer.invoke('load-file')
+  const newData = JSON.parse(response.json || '{}') as Partial<Context>
+  context.inputWords = newData.inputWords || []
+  store.store = context
+}
+const exportPrompts = async () => {
+  const { ipcRenderer } = window.require('electron/renderer')
+  await ipcRenderer.invoke(
+    'save-file',
+    JSON.stringify({ inputWords: context.inputWords })
+  )
 }
 </script>

@@ -1,0 +1,27 @@
+/**
+ * @see https://www.electron.build/configuration/configuration
+ */
+{
+  appId: 'novel-ai-auto',
+  asar: true,
+  extraResources: [],
+  directories: {
+    output: 'release/${version}',
+  },
+  files: ['.output/**/*', 'dist-electron'],
+  win: {
+    target: [
+      {
+        target: 'nsis',
+        arch: ['x64'],
+      },
+    ],
+    artifactName: '${productName}_${version}.${ext}',
+  },
+  nsis: {
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+    deleteAppDataOnUninstall: false,
+  },
+}

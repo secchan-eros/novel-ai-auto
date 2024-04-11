@@ -1,5 +1,33 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import process from 'node:process'
+import pkg from './package.json'
+
+fs.rmSync(path.join(__dirname, 'dist-electron'), {
+  recursive: true,
+  force: true,
+})
+
+const viteElectronBuildConfig = {
+  build: {
+    minify: process.env.NODE_ENV === 'production',
+    rollupOptions: {
+      external: Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
+    },
+  },
+  resolve: {
+    alias: {
+      '~': __dirname,
+    },
+  },
+}
+
 export default defineNuxtConfig({
+  ssr: false,
   devtools: { enabled: true },
+  experimental: {
+    appManifest: false,
+  },
   modules: ['nuxt-primevue', '@vueuse/nuxt', 'nuxt-electron'],
   primevue: {
     components: {
@@ -20,20 +48,6 @@ export default defineNuxtConfig({
   },
   nitro: {
     serveStatic: true,
-    devProxy: {
-      '/ai': {
-        target: 'https://image.novelai.net/ai',
-        changeOrigin: true,
-        secure: true,
-        ws: true,
-      },
-    },
-  },
-  runtimeConfig: {
-    public: {
-      novelaiToken: process.env.NUXT_PUBLIC_NOVELAI_TOKEN,
-      downloadDir: process.env.NUXT_PUBLIC_DOWNLOAD_DIR,
-    },
   },
   vite: {
     build: {
@@ -45,6 +59,14 @@ export default defineNuxtConfig({
       {
         // Main-Process entry file of the Electron App.
         entry: 'electron/main.ts',
+        vite: viteElectronBuildConfig,
+      },
+    ],
+    renderer: [
+      {
+        resolve: {
+          'electron-store': { type: 'cjs' },
+        },
       },
     ],
   },

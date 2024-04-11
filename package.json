@@ -1,13 +1,13 @@
 {
-  "name": "nuxt-app",
+  "name": "novel-ai-auto",
   "private": true,
   "version": "0.0.1",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
-    "build": "nuxi build --prerender && electron-builder",
-    "dev": "nuxi dev",
-    "postinstall": "nuxi prepare"
+    "build": "nuxt build && electron-builder",
+    "dev": "nuxt dev",
+    "postinstall": "nuxt prepare"
   },
   "devDependencies": {
     "@nuxtjs/eslint-config": "^12.0.0",
@@ -19,6 +19,7 @@
     "dayjs-nuxt": "^2.1.9",
     "electron": "^29.2.0",
     "electron-builder": "^24.13.3",
+    "electron-store": "^8.2.0",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-tailwindcss": "^3.15.1",
